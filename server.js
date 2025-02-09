@@ -3,24 +3,23 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const si = require('systeminformation');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 
-// Create an Express app
+// Create an Express app and HTTP server
 const app = express();
-
-// Define the port (8899 in this example)
 const PORT = process.env.PORT || 8899;
-
-// Create an HTTP server using the Express app
 const server = http.createServer(app);
 
-// Optionally, serve static files (e.g., your HTML/JS client) from the "public" folder
+// Serve static files (for your client HTML/JS) from the "public" folder
 app.use(express.static('public'));
 
-// Create a WebSocket server attached to the HTTP server
+// Create a WebSocket server on top of the HTTP server
 const wss = new WebSocket.Server({ server });
 
-// Helper function: Broadcast data to all connected clients
+/**
+ * Helper function to broadcast a JSON message to all connected WebSocket clients.
+ * @param {Object} data - The data object to send.
+ */
 function broadcast(data) {
   const jsonData = JSON.stringify(data);
   wss.clients.forEach(client => {
@@ -30,7 +29,9 @@ function broadcast(data) {
   });
 }
 
-// Function to fetch and broadcast system metrics
+/**
+ * Fetches and broadcasts system metrics (CPU, Memory, Disk usage).
+ */
 async function sendSystemData() {
   try {
     const cpu = await si.currentLoad();
@@ -57,30 +58,63 @@ async function sendSystemData() {
       }
     };
 
-    // Broadcast the system data to all clients
     broadcast(systemData);
   } catch (error) {
     console.error('Error fetching system data:', error);
   }
 }
 
-// Set up an interval to send system metrics every 3 seconds
+// Broadcast system metrics every 3 seconds
 setInterval(sendSystemData, 3000);
 
-// Spawn a child process to run the PM2 logs command in raw mode
+/**
+ * Fetch the list of PM2 processes (projects) using `pm2 jlist`,
+ * parse it, and broadcast the list of unique process names.
+ */
+function updateProjectList() {
+  exec('pm2 jlist', (err, stdout, stderr) => {
+    if (err) {
+      console.error('Error fetching PM2 project list:', err);
+      return;
+    }
+    try {
+      const processList = JSON.parse(stdout);
+      // Assume each PM2 process has a 'name' property.
+      const projects = [...new Set(processList.map(proc => proc.name))];
+      const projectData = {
+        type: 'projectList',
+        payload: projects
+      };
+      broadcast(projectData);
+    } catch (error) {
+      console.error('Error parsing PM2 project list:', error);
+    }
+  });
+}
+
+// Update the project list every 10 seconds (and immediately on startup)
+setInterval(updateProjectList, 10000);
+updateProjectList();
+
+/**
+ * Spawn a PM2 logs process in raw mode and broadcast each log line.
+ */
 const pm2LogProcess = spawn('pm2', ['logs', '--raw']);
 
-// Listen for data from PM2 stdout and broadcast it to clients
 pm2LogProcess.stdout.on('data', data => {
-  broadcast({ type: 'pm2Logs', payload: data.toString() });
+  // The data may contain multiple lines; split and broadcast each non-empty line.
+  const lines = data.toString().split('\n');
+  lines.forEach(line => {
+    if (line.trim()) {
+      broadcast({ type: 'pm2Logs', payload: line });
+    }
+  });
 });
 
-// Listen for any errors from PM2 logs and broadcast the error output
 pm2LogProcess.stderr.on('data', data => {
   broadcast({ type: 'pm2Logs', payload: "ERROR: " + data.toString() });
 });
 
-// Log when the PM2 logs process closes
 pm2LogProcess.on('close', code => {
   console.log(`PM2 logs process exited with code ${code}`);
 });
@@ -88,10 +122,10 @@ pm2LogProcess.on('close', code => {
 // Handle new WebSocket client connections
 wss.on('connection', ws => {
   console.log('New client connected');
-
-  // Optionally send immediate system data upon connection
+  // Optionally, send the latest system data and project list immediately upon connection.
   sendSystemData();
-
+  updateProjectList();
+  
   ws.on('close', () => {
     console.log('Client disconnected');
   });
