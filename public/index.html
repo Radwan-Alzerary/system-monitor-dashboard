@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>System Monitor Dashboard</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Socket.IO client library via CDN (version 4.6.0 is used as an example) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js"
+          integrity="sha512-JlYFUO9Gib1b3P6vD9W46wkMU0huFTB3q3q6niG3/Cy/vFG55/USvAjUPeZDHg4z0lNScgByko3vHU8x0VQdBA=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="container mx-auto p-4">
+    <h1 class="text-3xl font-bold text-center mb-6">System Monitor Dashboard</h1>
+    
+    <!-- CPU Usage Card -->
+    <div id="cpu" class="bg-white p-4 rounded shadow mb-4">
+      <h2 class="text-2xl font-semibold mb-2">CPU Usage</h2>
+      <p class="text-lg" id="cpu-load">Loading...</p>
+    </div>
+    
+    <!-- Memory Usage Card -->
+    <div id="memory" class="bg-white p-4 rounded shadow mb-4">
+      <h2 class="text-2xl font-semibold mb-2">Memory Usage</h2>
+      <p class="text-lg" id="memory-info">Loading...</p>
+    </div>
+    
+    <!-- Disk Usage Card -->
+    <div id="disk" class="bg-white p-4 rounded shadow mb-4">
+      <h2 class="text-2xl font-semibold mb-2">Disk Usage</h2>
+      <div id="disk-info">Loading...</div>
+    </div>
+    
+    <!-- PM2 Logs Card -->
+    <div id="logs" class="bg-white p-4 rounded shadow">
+      <h2 class="text-2xl font-semibold mb-2">PM2 Logs</h2>
+      <div id="pm2-logs" class="bg-gray-900 text-green-300 p-2 rounded overflow-y-scroll h-64 font-mono text-xs">
+        Loading logs...
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Connect to the backend using Socket.IO from the CDN
+    const socket = io();
+
+    // Listen for system metrics updates from the server
+    socket.on('systemData', (data) => {
+      // Update CPU usage
+      document.getElementById('cpu-load').innerText = data.cpu.load + '%';
+
+      // Update memory usage
+      document.getElementById('memory-info').innerText =
+        'Total: ' + data.memory.total + ' MB, ' +
+        'Used: ' + data.memory.used + ' MB, ' +
+        'Free: ' + data.memory.free + ' MB';
+
+      // Update disk usage info
+      let diskHtml = '';
+      data.disk.forEach((d) => {
+        diskHtml += `
+          <div class="mb-2 border-b pb-2">
+            <p class="font-bold">Filesystem: ${d.fs}</p>
+            <p>Size: ${d.size} GB</p>
+            <p>Used: ${d.used} GB</p>
+            <p>Usage: ${d.use}%</p>
+          </div>
+        `;
+      });
+      document.getElementById('disk-info').innerHTML = diskHtml;
+    });
+
+    // Listen for PM2 logs being streamed from the server
+    socket.on('pm2Logs', (logLine) => {
+      const logContainer = document.getElementById('pm2-logs');
+      // Append the new log line; convert newlines to <br> for HTML formatting
+      logContainer.innerHTML += logLine.replace(/\n/g, '<br/>');
+      // Auto-scroll to the bottom of the log container
+      logContainer.scrollTop = logContainer.scrollHeight;
+    });
+  </script>
+</body>
+</html>

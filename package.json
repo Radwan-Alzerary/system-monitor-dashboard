@@ -1,0 +1,19 @@
+{
+  "name": "system-monitor-dashboard",
+  "version": "1.0.0",
+  "description": "A Node.js system monitor dashboard with realtime updates using Socket.IO and Tailwind CSS",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "systeminformation": "^5.25.11"
+  }
+}
