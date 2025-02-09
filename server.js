@@ -42,19 +42,19 @@ async function sendSystemData() {
       type: 'systemData',
       payload: {
         cpu: {
-          // Fixed: use cpu.currentLoad (capital L) instead of cpu.currentload
-          load: cpu.currentLoad.toFixed(2) // CPU load percentage
+          // Note: Use cpu.currentLoad (capital "L")
+          load: cpu.currentLoad.toFixed(2)
         },
         memory: {
-          total: (mem.total / 1024 / 1024).toFixed(2),       // Total memory in MB
-          used: ((mem.total - mem.available) / 1024 / 1024).toFixed(2), // Used memory in MB
-          free: (mem.available / 1024 / 1024).toFixed(2)       // Free memory in MB
+          total: (mem.total / 1024 / 1024).toFixed(2),       // in MB
+          used: ((mem.total - mem.available) / 1024 / 1024).toFixed(2),
+          free: (mem.available / 1024 / 1024).toFixed(2)
         },
         disk: disk.map(d => ({
           fs: d.fs,
-          size: (d.size / 1024 / 1024 / 1024).toFixed(2), // Disk size in GB
-          used: (d.used / 1024 / 1024 / 1024).toFixed(2),   // Disk used in GB
-          use: d.use                                       // Disk usage percentage
+          size: (d.size / 1024 / 1024 / 1024).toFixed(2), // in GB
+          used: (d.used / 1024 / 1024 / 1024).toFixed(2),
+          use: d.use
         }))
       }
     };
@@ -70,7 +70,7 @@ setInterval(sendSystemData, 3000);
 
 /**
  * Get the list of PM2 processes (projects) using `pm2 jlist`,
- * then broadcast the list of unique process names.
+ * then broadcast the unique process names.
  */
 function updateProjectList() {
   exec('pm2 jlist', (err, stdout, stderr) => {
@@ -80,7 +80,7 @@ function updateProjectList() {
     }
     try {
       const processList = JSON.parse(stdout);
-      // Extract unique project names (assumes each PM2 process has a 'name' property)
+      // Each PM2 process is expected to have a 'name' property.
       const projects = [...new Set(processList.map(proc => proc.name))];
       broadcast({ type: 'projectList', payload: projects });
     } catch (error) {
@@ -89,7 +89,7 @@ function updateProjectList() {
   });
 }
 
-// Update the project list every 10 seconds (and immediately on startup)
+// Update project list every 10 seconds and immediately at startup
 setInterval(updateProjectList, 10000);
 updateProjectList();
 
@@ -99,7 +99,7 @@ updateProjectList();
 const pm2LogProcess = spawn('pm2', ['logs', '--raw']);
 
 pm2LogProcess.stdout.on('data', data => {
-  // Data may include multiple lines; split them and broadcast each non-empty line.
+  // Split data into individual lines and broadcast each non-empty line.
   const lines = data.toString().split('\n');
   lines.forEach(line => {
     if (line.trim()) {
@@ -116,7 +116,7 @@ pm2LogProcess.on('close', code => {
   console.log(`PM2 logs process exited with code ${code}`);
 });
 
-// Log new WebSocket connections and send an immediate update if desired.
+// Log new client connections and send an immediate update.
 wss.on('connection', ws => {
   console.log('New client connected');
   sendSystemData();

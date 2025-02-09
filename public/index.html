@@ -33,7 +33,9 @@
     
     <!-- Project Filter Dropdown -->
     <div class="mb-6">
-      <label for="projectFilter" class="block text-xl font-medium text-gray-700 mb-2">Filter Logs by Project:</label>
+      <label for="projectFilter" class="block text-xl font-medium text-gray-700 mb-2">
+        Filter Logs by Project:
+      </label>
       <select id="projectFilter" class="w-full p-2 rounded border">
         <option value="All">All</option>
       </select>
@@ -45,37 +47,39 @@
       <div id="pm2-logs" class="bg-gray-900 text-green-300 p-2 rounded overflow-y-scroll h-64 font-mono text-xs">
         Loading logs...
       </div>
-      <button id="clearLogs" class="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear Logs</button>
+      <button id="clearLogs" class="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+        Clear Logs
+      </button>
     </div>
   </div>
   
   <script>
     // Connect to the WebSocket server (adjust the URL if needed)
     const socket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
-
-    // DOM elements for updating data
+    
+    // Get DOM elements
     const cpuLoadEl = document.getElementById('cpu-load');
     const memoryInfoEl = document.getElementById('memory-info');
     const diskInfoEl = document.getElementById('disk-info');
     const projectFilterEl = document.getElementById('projectFilter');
     const pm2LogsEl = document.getElementById('pm2-logs');
     const clearLogsBtn = document.getElementById('clearLogs');
-
-    // Current filter selection; default is "All"
+    
+    // Current filter (default is "All")
     let currentFilter = "All";
-
-    // Update the current filter when the user selects a different project
+    
+    // When the project filter dropdown changes, update currentFilter and clear logs.
     projectFilterEl.addEventListener('change', (e) => {
       currentFilter = e.target.value;
-      // Optionally, clear logs when changing filter
+      console.log("Filter changed to:", currentFilter);
       pm2LogsEl.innerHTML = "";
     });
-
-    // Clear logs when the button is clicked
+    
+    // Clear logs on button click.
     clearLogsBtn.addEventListener('click', () => {
       pm2LogsEl.innerHTML = "";
     });
-
+    
     // Listen for messages from the server
     socket.addEventListener('message', (event) => {
       try {
@@ -97,8 +101,8 @@
         console.error('Error parsing message:', error);
       }
     });
-
-    // Update system metrics in the DOM
+    
+    // Update system metrics in the DOM.
     function updateSystemData(data) {
       cpuLoadEl.innerText = `${data.cpu.load}%`;
       memoryInfoEl.innerText = `Total: ${data.memory.total} MB, Used: ${data.memory.used} MB, Free: ${data.memory.free} MB`;
@@ -115,29 +119,34 @@
       });
       diskInfoEl.innerHTML = diskHtml;
     }
-
-    // Update the project filter dropdown options
+    
+    // Update the project filter dropdown options.
     function updateProjectList(projects) {
-      // Always start with "All"
       const options = ['All', ...projects];
       projectFilterEl.innerHTML = options.map(proj => `<option value="${proj}">${proj}</option>`).join('');
-      // Restore current filter if possible
+      // Restore current filter if it still exists.
       if (options.includes(currentFilter)) {
         projectFilterEl.value = currentFilter;
       } else {
         currentFilter = "All";
       }
+      console.log("Updated project list:", options);
     }
-
-    // Append a log line if it matches the current filter
+    
+    // Append a log line if it matches the current filter.
     function appendLog(logLine) {
-      // If the filter is not "All", only display logs that include the selected project name (case-insensitive)
+      // Debug: log the incoming line and current filter.
+      console.debug("Incoming log line:", logLine);
+      console.debug("Current filter:", currentFilter);
+      
+      // If filtering is active and the log line does not contain the filter string (case-insensitive), skip it.
       if (currentFilter !== "All" && !logLine.toLowerCase().includes(currentFilter.toLowerCase())) {
+        console.debug("Log line skipped (filter mismatch).");
         return;
       }
-      // Append the log line with newline characters replaced for HTML formatting
+      // Append the log line.
       pm2LogsEl.innerHTML += logLine.replace(/\n/g, '<br/>') + '<br/>';
-      // Auto-scroll to the bottom
+      // Auto-scroll to the bottom.
       pm2LogsEl.scrollTop = pm2LogsEl.scrollHeight;
     }
   </script>
