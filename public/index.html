@@ -4,17 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>System Monitor Dashboard</title>
-  
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Socket.IO client library via CDN -->
-  <script 
-    src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.min.js" 
-    integrity="sha512-JlYFUO9Gib1b3P6vD9W46wkMU0huFTB3q3q6niG3/Cy/vFG55/USvAjUPeZDHg4z0lNScgByko3vHU8x0VQdBA=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer">
-  </script>
 </head>
 <body class="bg-gray-100">
   <div class="container mx-auto p-4">
@@ -47,43 +38,46 @@
     </div>
   </div>
   
-  <!-- Inline JavaScript placed after the Socket.IO library is loaded -->
   <script>
-    // Create the Socket.IO client connection.
-    // Since the Socket.IO library is already loaded from the CDN, the global 'io' should now be defined.
-    const socket = io();
-
-    // Listen for system metrics updates from the server
-    socket.on('systemData', (data) => {
-      // Update CPU usage display
-      document.getElementById('cpu-load').innerText = `${data.cpu.load}%`;
-
-      // Update memory usage display
-      document.getElementById('memory-info').innerText =
-        `Total: ${data.memory.total} MB, Used: ${data.memory.used} MB, Free: ${data.memory.free} MB`;
-
-      // Update disk usage display
-      let diskHtml = '';
-      data.disk.forEach((d) => {
-        diskHtml += `
-          <div class="mb-2 border-b pb-2">
-            <p class="font-bold">Filesystem: ${d.fs}</p>
-            <p>Size: ${d.size} GB</p>
-            <p>Used: ${d.used} GB</p>
-            <p>Usage: ${d.use}%</p>
-          </div>
-        `;
-      });
-      document.getElementById('disk-info').innerHTML = diskHtml;
-    });
-
-    // Listen for PM2 logs streamed from the server
-    socket.on('pm2Logs', (logLine) => {
-      const logContainer = document.getElementById('pm2-logs');
-      // Append the new log line; convert newline characters to <br> for HTML formatting
-      logContainer.innerHTML += logLine.replace(/\n/g, '<br/>');
-      // Auto-scroll to the bottom of the log container
-      logContainer.scrollTop = logContainer.scrollHeight;
+    // Connect using the native WebSocket API
+    const socket = new WebSocket(`ws://${window.location.host}`);
+    
+    // Listen for messages from the server
+    socket.addEventListener('message', (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'systemData') {
+          const data = msg.payload;
+          // Update CPU usage display
+          document.getElementById('cpu-load').innerText = data.cpu.load + '%';
+    
+          // Update memory usage display
+          document.getElementById('memory-info').innerText =
+            `Total: ${data.memory.total} MB, Used: ${data.memory.used} MB, Free: ${data.memory.free} MB`;
+    
+          // Update disk usage display
+          let diskHtml = '';
+          data.disk.forEach((d) => {
+            diskHtml += `
+              <div class="mb-2 border-b pb-2">
+                <p class="font-bold">Filesystem: ${d.fs}</p>
+                <p>Size: ${d.size} GB</p>
+                <p>Used: ${d.used} GB</p>
+                <p>Usage: ${d.use}%</p>
+              </div>
+            `;
+          });
+          document.getElementById('disk-info').innerHTML = diskHtml;
+        }
+        else if (msg.type === 'pm2Logs') {
+          const logContainer = document.getElementById('pm2-logs');
+          // Append the new log data, converting newline characters to <br>
+          logContainer.innerHTML += msg.payload.replace(/\n/g, '<br/>');
+          logContainer.scrollTop = logContainer.scrollHeight;
+        }
+      } catch (error) {
+        console.error('Error parsing message:', error);
+      }
     });
   </script>
 </body>
