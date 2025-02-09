@@ -42,7 +42,8 @@ async function sendSystemData() {
       type: 'systemData',
       payload: {
         cpu: {
-          load: cpu.currentload.toFixed(2) // CPU load percentage
+          // Fixed: use cpu.currentLoad (capital L) instead of cpu.currentload
+          load: cpu.currentLoad.toFixed(2) // CPU load percentage
         },
         memory: {
           total: (mem.total / 1024 / 1024).toFixed(2),       // Total memory in MB

@@ -135,7 +135,7 @@
       if (currentFilter !== "All" && !logLine.toLowerCase().includes(currentFilter.toLowerCase())) {
         return;
       }
-      // Append the log line with a newline replacement for HTML
+      // Append the log line with newline characters replaced for HTML formatting
       pm2LogsEl.innerHTML += logLine.replace(/\n/g, '<br/>') + '<br/>';
       // Auto-scroll to the bottom
       pm2LogsEl.scrollTop = pm2LogsEl.scrollHeight;
