@@ -55,7 +55,7 @@
   
   <script>
     // Connect to the WebSocket server (adjust the URL if needed)
-    const socket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
+    const socket = new WebSocket(`wss://${window.location.hostname}:${window.location.port}`);
     
     // Get DOM elements
     const cpuLoadEl = document.getElementById('cpu-load');
