@@ -10,14 +10,14 @@ const app = express();
 const PORT = process.env.PORT || 8899;
 const server = http.createServer(app);
 
-// Serve static files (for your client HTML/JS) from the "public" folder
+// Serve static files from the "public" folder (your client HTML, etc.)
 app.use(express.static('public'));
 
 // Create a WebSocket server on top of the HTTP server
 const wss = new WebSocket.Server({ server });
 
 /**
- * Helper function to broadcast a JSON message to all connected WebSocket clients.
+ * Broadcast a JSON message to all connected WebSocket clients.
  * @param {Object} data - The data object to send.
  */
 function broadcast(data) {
@@ -30,7 +30,7 @@ function broadcast(data) {
 }
 
 /**
- * Fetches and broadcasts system metrics (CPU, Memory, Disk usage).
+ * Fetch and broadcast system metrics (CPU, Memory, Disk usage).
  */
 async function sendSystemData() {
   try {
@@ -52,8 +52,8 @@ async function sendSystemData() {
         disk: disk.map(d => ({
           fs: d.fs,
           size: (d.size / 1024 / 1024 / 1024).toFixed(2), // Disk size in GB
-          used: (d.used / 1024 / 1024 / 1024).toFixed(2), // Disk used in GB
-          use: d.use                                     // Disk usage percentage
+          used: (d.used / 1024 / 1024 / 1024).toFixed(2),   // Disk used in GB
+          use: d.use                                       // Disk usage percentage
         }))
       }
     };
@@ -68,8 +68,8 @@ async function sendSystemData() {
 setInterval(sendSystemData, 3000);
 
 /**
- * Fetch the list of PM2 processes (projects) using `pm2 jlist`,
- * parse it, and broadcast the list of unique process names.
+ * Get the list of PM2 processes (projects) using `pm2 jlist`,
+ * then broadcast the list of unique process names.
  */
 function updateProjectList() {
   exec('pm2 jlist', (err, stdout, stderr) => {
@@ -79,13 +79,9 @@ function updateProjectList() {
     }
     try {
       const processList = JSON.parse(stdout);
-      // Assume each PM2 process has a 'name' property.
+      // Extract unique project names (assumes each PM2 process has a 'name' property)
       const projects = [...new Set(processList.map(proc => proc.name))];
-      const projectData = {
-        type: 'projectList',
-        payload: projects
-      };
-      broadcast(projectData);
+      broadcast({ type: 'projectList', payload: projects });
     } catch (error) {
       console.error('Error parsing PM2 project list:', error);
     }
@@ -102,7 +98,7 @@ updateProjectList();
 const pm2LogProcess = spawn('pm2', ['logs', '--raw']);
 
 pm2LogProcess.stdout.on('data', data => {
-  // The data may contain multiple lines; split and broadcast each non-empty line.
+  // Data may include multiple lines; split them and broadcast each non-empty line.
   const lines = data.toString().split('\n');
   lines.forEach(line => {
     if (line.trim()) {
@@ -119,19 +115,18 @@ pm2LogProcess.on('close', code => {
   console.log(`PM2 logs process exited with code ${code}`);
 });
 
-// Handle new WebSocket client connections
+// Log new WebSocket connections and send an immediate update if desired.
 wss.on('connection', ws => {
   console.log('New client connected');
-  // Optionally, send the latest system data and project list immediately upon connection.
   sendSystemData();
   updateProjectList();
-  
+
   ws.on('close', () => {
     console.log('Client disconnected');
   });
 });
 
-// Start the HTTP & WebSocket server
+// Start the HTTP and WebSocket server
 server.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
